@@ -19,6 +19,8 @@ editor_options:
 #| message: false
 #| warning: false
 library(dplyr)
+library(dbplyr)
+library(dbplyr)
 library(duckdb)
 library(ggplot2)
 
@@ -154,7 +156,7 @@ result |>
 
 ```{r}
 # Write the CSV file to a new table in the DuckDB .db file
-db_path <- tempfile(fileext = ".db")
+db_path <- "nyctaxi.db"
 
 con_db <- DBI::dbConnect(duckdb::duckdb(), db_path)
 

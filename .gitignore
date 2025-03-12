@@ -4,6 +4,7 @@
 .Ruserdata
 *.html
 *.csv
+*.db
 *.quarto_ipynb
 !index.html
 !MEH_AMD_survivaloutcomes_database.csv

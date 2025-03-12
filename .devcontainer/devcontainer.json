@@ -4,7 +4,7 @@
 	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
 	"features": {
 		"ghcr.io/rocker-org/devcontainer-features/r-rig:1": {
-			"version": "release"
+			"version": "4.4.3"
 		},
 		"ghcr.io/rocker-org/devcontainer-features/rstudio-server:0": {}
 	},
@@ -18,6 +18,20 @@
 		"8787": {
 			"label": "RStudio IDE"
 		}
-	}
+	},
+	"extensions": [
+		"quarto.quarto",
+        "ms-python.python",
+        "ms-toolsai.jupyter",
+        "ms-vscode.vscode-typescript-tslint-plugin",
+        "ms-toolsai.jupyter-keymap",
+        "ms-toolsai.jupyter-renderers",
+        "ms-toolsai.vscode-jupyter-cell-tags",
+        "ms-azuretools.vscode-docker",
+        "GitHub.copilot",
+        "Google.geminicodeassist",
+        "reditorsupport.r"
+	],
+	"postCreateCommand": "if [ ! -d \"venv\"; then python -m venv venv && . venv/bin/activate && pip install --no-cache-dir -r requirements.txt; fi"
 }
 
