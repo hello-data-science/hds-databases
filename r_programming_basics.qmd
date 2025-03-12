@@ -1,0 +1,452 @@
+---
+title: "R programming basics"
+author: "Me"
+format: 
+  html:
+    code-fold: show
+    code-link: true
+    self-contained: true
+    toc: true
+    code-tools:
+      source: true
+      toggle: true
+      caption: Code
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Objects
+
+### Basic types
+
+Scalars
+
+```{r}
+# logical
+TRUE
+
+# numeric
+1
+
+# character
+"a"
+
+# missing
+NA
+```
+
+### Vectors
+
+Combine objects **of the same type** in a vector
+
+```{r}
+# logical
+c(TRUE, FALSE)
+
+# numeric
+c(1, 2, 3)
+
+# character
+c("a", "b")
+
+```
+
+Access items using square brackets
+
+```{r}
+# numbering starts from 1 (unlike many other programming languages, which start with 0)
+my_vector <- c("a", "b", "c")
+my_vector[1]
+
+# `letters` is a built in vector
+letters[24]
+
+# select multiple items with a vector of indices
+letters[c(1, 24)]
+```
+
+```{r}
+
+my_vector_f <- c("apple", "banana", "cherry", "mango")
+
+my_vector_f[c(1, 3)] 
+
+```
+
+```{r}
+
+# Using : to specify a range of indices
+letters[3:10]
+
+```
+
+
+```{r}
+
+my_vector
+# Negative index to exclude a specific element 
+my_vector[-2]
+
+```
+
+```{r}
+
+speed <- c(25, 30, 45, 60, 50, 90, 73)
+speed[2]      
+speed[c(1, 4)]  
+speed[speed > 40]  
+
+```
+
+```{r}
+
+length(speed)
+
+```
+
+
+### Lists
+
+Combine objects of different types in a list
+
+```{r}
+# unnamed list
+my_list <- list(c(TRUE, FALSE), c(1, 2, 3), c("a", "b"))
+
+my_list
+
+names(my_list)
+```
+
+List elements can be named
+
+```{r}
+# named list
+my_named_list <- list(
+  logical = c(TRUE, FALSE),
+  numeric = c(1, 2),
+  character = c("a", "b")
+)
+
+my_named_list
+
+names(my_named_list)
+```
+
+Lists can contain lists (nested lists)
+
+```{r}
+
+nested_list <- list("a", list("b", list("c")))
+
+nested_list
+
+# more clearly visualised with lobstr package
+lobstr::tree(nested_list)
+
+```
+
+```{r}
+# nested example
+another_nested_list <- 
+  list(
+  numeric = list(1, 2, 3),
+  characters = list("a", list("b", list("c", "d"))),
+  logical = TRUE
+)
+
+another_nested_list
+
+lobstr::tree(another_nested_list)
+
+```
+
+Subset lists using square brackets
+
+```{r}
+my_named_list[c(1, 2)]
+```
+
+Access list items with double square brackets or `$`
+
+```{r}
+# with double square brackets supply item name in quotes - return
+my_named_list[["character"]]
+
+# when using `$`, quotes are not needed
+my_named_list$character
+
+# with the former approach, the item name can be supplied as an object
+x <- "character"
+my_named_list[[x]]
+```
+
+```{r}
+
+c(my_named_list[["character"]], my_named_list[["logical"]])
+
+
+# Use [] to access elements of a list without flattening
+c(my_named_list["character"], my_named_list["logical"])
+
+str(c(my_named_list[["character"]], my_named_list[["logical"]])) # A vector 
+str(c(my_named_list["character"], my_named_list["logical"])) # A list of 2
+
+```
+
+
+### Data frames
+
+A special type of list, where each item is a vector of the same length
+
+```{r}
+# create by hand with data.frame()
+data.frame(x = c(1, 2, 3), y = c("a", "b", "c"))
+
+# convert from a list with as.data.frame()
+df <- as.data.frame(my_named_list)
+df
+```
+
+Subset with square brackets
+
+```{r}
+# first row, all columns
+df[1, ]
+
+# all rows, first two columns
+df[, c(1, 2)]
+
+# (also) all rows, first two columns
+df[, c("logical", "numeric")]
+```
+
+Access columns with double square brackets, or `$`. Both methods return a vector
+
+```{r}
+# with double square brackets supply column name in quotes - return
+df[["character"]]
+
+# when using `$`, quotes are not needed
+df$character
+
+# with the former approach, the column name can be supplied as an object
+x <- "character"
+df[[x]]
+```
+
+### Functions
+
+Functions are blocks of code
+
+```{r}
+# create a function with function() { <INSERT CODE> }
+hello_world <- function() {
+  print("Hello world")
+}
+
+# view the function by simply typing its name
+
+hello_world
+
+```
+
+Functions may be called to execute the code they contain
+
+```{r}
+hello_world()
+```
+
+Arguments extend function utility
+
+```{r}
+hello <- function(x) {
+  print(paste("Hello", x))
+}
+
+hello("world!")
+hello("moon!")
+
+```
+
+## Conditions
+
+### Comparison operators
+
+| Operator | Description                  | Example          | Result    |
+|----------|------------------------------|------------------|-----------|
+| `==`     | Equal to                     | `5 == 5`         | `TRUE`    |
+| `!=`     | Not equal to                 | `5 != 4`         | `TRUE`    |
+| `<`      | Less than                    | `3 < 5`          | `TRUE`    |
+| `>`      | Greater than                 | `3 > 5`          | `FALSE`   |
+| `<=`     | Less than or equal to        | `3 <= 3`         | `TRUE`    |
+| `>=`     | Greater than or equal to     | `3 >= 5`         | `FALSE`   |
+
+### Logical operators
+
+| Operator | Description                                                    | Example                             | Result         |
+|----------|----------------------------------------------------------------|-------------------------------------|----------------|
+| `&`      | Element-wise AND                                               | `c(TRUE, FALSE) & c(TRUE, TRUE)`     | `TRUE FALSE`   |
+| `&&`     | Short-circuit AND (only evaluates the first element)            | `TRUE && FALSE`                     | `FALSE`        |
+| `|`      | Element-wise OR                                                | `c(TRUE, FALSE) | c(FALSE, TRUE)`   | `TRUE TRUE`    |
+| `||`     | Short-circuit OR (only evaluates the first element)             | `TRUE || FALSE`                     | `TRUE`         |
+| `!`      | NOT                                                            | `!TRUE`                             | `FALSE`        |
+| `%in%`   | Checks if elements in one vector are present in another vector  | `2 %in% c(1, 2, 3)`                 | `TRUE`         |
+| `xor()`  | Exclusive OR (one condition must be `TRUE`, but not both)       | `xor(TRUE, FALSE)`                  | `TRUE`         |
+
+Examples
+
+```{r}
+# returns TRUE
+"a" %in% letters[c(1, 2)]
+
+# returns FALSE
+!TRUE
+
+# returns TRUE
+TRUE | FALSE
+
+# returns FALSE
+TRUE & FALSE
+```
+
+```{r}
+# Logical && vs &
+months_fup <- c(1,2,3,4,5)
+lens <- c("phakic", "phakic", "phakic", "pseudophakic", "phakic")
+
+# && Evaluates the first condition only
+and_sc <- months_fup > 0 && lens == "pseudophakic"
+and_sc # returns FALSE as only the first element of the vectors is assessed
+
+# &
+and <- months_fup > 0 & lens == "pseudophakic"
+and # returns a vector with results of comparisons
+
+```
+
+```{r}
+# A case of a patient with cataract surgery
+months_fup <- c(1, 2, 3, 4)
+va_improvement <- c(FALSE, TRUE, TRUE, TRUE)
+lens_status <- c("phakic", "phakic", "pseudophakic", "pseudophakic")
+
+# Check if vision improved OR pseudophakic status at any visit
+improvement_or_surgery <- va_improvement | lens_status == "pseudophakic"
+
+improvement_or_surgery
+
+
+# We use | here for element-wise check (could have used || if only checking the first visit)
+improvement_or_surgery_sc <- va_improvement || lens_status == "pseudophakic"
+
+improvement_or_surgery_sc # Returns FALSE for the first visit
+
+```
+
+```{r}
+# Exclusive surgery OR improvement, but not both
+exclusive_surgery_or_improvement <- xor(va_improvement, lens_status == "pseudophakic")
+
+# Display result
+exclusive_surgery_or_improvement
+```
+
+
+### if, else if, else
+
+```{r}
+# try assigning different values to x
+x <- 3
+
+if (x > 1) {
+  print("x is bigger than 1")
+} else if (x == 1) {
+  print("x equals 1")
+} else {
+  print("x is greater than 1")
+}
+```
+
+## Data wrangling
+
+### Filtering rows
+
+Use a data mask
+
+```{r}
+# a data mask - a logical vector
+data_mask <- df$numeric > 1
+data_mask
+
+# can be used to subset (filter) rows in a data frame
+df[data_mask, ]
+```
+
+### Creating columns
+
+```{r}
+# create a new column
+new_column <- ifelse(df$numeric > 1,
+                     yes = "Greater than 1",
+                     no = "Less than 1")
+df2 <- df
+df2$greater_than_1 <- new_column
+df2
+
+# overwrite an existing column
+df3 <- df2
+df3$character <- toupper(df3$character)
+df3
+```
+
+## Loops
+
+### For loops
+
+Do something for each item in an interable (vector/list)
+
+```{r}
+for (item in my_list) {
+  print(class(item))
+}
+```
+
+Can also loop through by index using `seq_along()`
+
+```{r}
+for (i in seq_along(my_list)) {
+  print(i)
+  print(class(my_list[[i]]))
+}
+```
+
+A common pattern is to create an empty list to hold the results from your loop
+
+```{r}
+# initiate an empty list
+result <- list()
+
+# loop through an iterable
+iterable <- c(1, 2, 3, 4, 5)
+
+for (i in seq_along(iterable)) {
+  result[[LETTERS[i]]] <- iterable[i]
+}
+
+# final result
+result
+```
+
+### While loops
+
+Continue looping while a certain condition is met (beware infinite loops!)
+
+```{r}
+x <- 0
+
+while (x < 5) {
+  print(x)
+  x <- x + 1
+}
+```

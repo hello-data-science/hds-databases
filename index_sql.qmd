@@ -1,0 +1,178 @@
+---
+title: "Neovascular Age-related Macular Degeneration Visual Outcomes - SQL Version"
+author: "Me"
+format: 
+  html:
+    code-fold: show
+    code-link: true
+    self-contained: true
+    toc: true
+    code-tools:
+      source: true
+      toggle: true
+      caption: Code
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+#| message: false
+#| warning: false
+
+library(dplyr)
+library(duckdb)
+
+# create a temporary duckdb .db file from the raw csv data
+amd_csv_path <- "MEH_AMD_survivaloutcomes_database.csv"
+db_path <- tempfile(fileext = ".db")
+
+con <- DBI::dbConnect(duckdb::duckdb(), db_path)
+
+dbWriteTable(con, "amd", readr::read_csv(amd_csv_path), overwrite = TRUE)
+```
+
+# Overview
+
+**Aim:** to explore a 12-year dataset of patients with treatment-naive neovascular age-related macular degeneration (AMD) who received intravitreal anti-VEGF therapy.
+
+# Session 1
+
+## Explore data
+
+```{sql}
+#| connection: "con"
+
+-- View the first few rows of the dataset
+SELECT * FROM amd LIMIT 10;
+```
+
+## Summarize the dataset
+
+```{sql}
+#| connection: "con"
+DESCRIBE amd;
+```
+
+## Selecting columns and filtering rows
+
+```{sql}
+#| connection: "con"
+
+-- Drop the temporary table if it already exists
+DROP TABLE IF EXISTS amd_first_injection_vas;
+
+-- Select visual acuity, age group, and injection number columns, filtering for first injections only
+CREATE TEMPORARY TABLE amd_first_injection_vas AS
+SELECT anon_id,
+       va, 
+       time, 
+       age_group
+FROM amd
+WHERE time = 0;
+
+-- Verify the filtered dataset
+SELECT * FROM amd_first_injection_vas LIMIT 10;
+```
+
+## Count rows
+
+```{sql}
+#| connection: "con"
+
+-- Count the number of rows in the full and filtered datasets
+SELECT 'Full Dataset' AS dataset, COUNT(*) AS n_rows FROM amd
+UNION
+SELECT 'Filtered Dataset' AS dataset, COUNT(*) AS n_rows FROM amd_first_injection_vas;
+```
+
+# Session 2
+
+## More wrangling - VA at month 12
+
+```{sql}
+#| connection: "con"
+
+-- Drop the temporary table if it already exists
+DROP TABLE IF EXISTS amd_12_month;
+
+-- Create a new table for VA at 12 months by calculating time from baseline
+CREATE TEMPORARY TABLE amd_12_month AS
+WITH ranked_va AS (
+    SELECT 
+        anon_id,
+        ABS(365 - time) AS time_from_12_months,
+        va AS va_12m,
+        ROW_NUMBER() OVER (PARTITION BY anon_id ORDER BY ABS(365 - time) ASC) AS rn
+    FROM amd
+    WHERE ABS(365 - time) < 30
+)
+
+SELECT anon_id, time_from_12_months, va_12m
+FROM ranked_va
+WHERE rn = 1; -- Select only the first row for each anon_id
+
+-- Verify the new table
+SELECT * FROM amd_12_month LIMIT 10;
+```
+
+## Join tables
+
+```{sql}
+#| connection: "con"
+
+-- Drop the temporary table if it already exists
+DROP TABLE IF EXISTS amd_merged;
+
+-- Join the filtered first injection data with the 12-month data
+CREATE TEMPORARY TABLE amd_merged AS
+SELECT a.anon_id,
+       a.va AS baseline_va,
+       b.va_12m
+FROM amd_first_injection_vas a
+LEFT JOIN amd_12_month b ON a.anon_id = b.anon_id;
+
+-- View the merged data
+SELECT * FROM amd_merged LIMIT 10;
+```
+
+## Linear regression
+
+Prepare using SQL
+
+```{sql}
+#| connection: "con"
+
+-- Drop the temporary table if it already exists
+DROP TABLE IF EXISTS amd_cleaned;
+
+-- Remove rows with missing values for baseline or 12-month VA
+CREATE TABLE amd_cleaned AS
+SELECT * FROM amd_merged
+WHERE baseline_va IS NOT NULL AND va_12m IS NOT NULL;
+
+-- View the cleaned data
+SELECT * FROM amd_cleaned LIMIT 10;
+```
+
+Complete using R
+
+```{r}
+# db contains original dataset, plus all the tables we have created so far
+DBI::dbListTables(con)
+
+# create list of tbl objects
+db <- DBI::dbListTables(con) |>
+  purrr::set_names() |>
+  purrr::map(\(table_name) tbl(con, table_name)) 
+
+# use usual dplyr syntax, ending with collect() to read query result into R
+amd_cleaned <- db$amd_cleaned |>
+  select(anon_id,
+         baseline_va,
+         va_12m) |>
+  collect()
+
+# linear regression
+lm(va_12m ~ baseline_va, data = amd_cleaned) |>
+  summary()
+```

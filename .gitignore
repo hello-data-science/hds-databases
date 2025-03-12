@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.html
+*.csv
+*.quarto_ipynb
+!index.html
+!MEH_AMD_survivaloutcomes_database.csv
+env/*
+

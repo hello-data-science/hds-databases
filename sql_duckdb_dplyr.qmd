@@ -1,0 +1,197 @@
+---
+title: "SQL and dbplyr ('Big Data')"
+author: "Me"
+format: 
+  html:
+    code-fold: show
+    code-link: true
+    self-contained: true
+    toc: true
+    code-tools:
+      source: true
+      toggle: true
+      caption: Code
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+#| message: false
+#| warning: false
+library(dplyr)
+library(duckdb)
+library(ggplot2)
+
+# get NYC yellow taxi dataset by running in terminal: `wget -O nyctaxi.csv "https://data.cityofnewyork.us/api/views/kxp8-n2sj/rows.csv?accessType=DOWNLOAD"` (from https://catalog.data.gov/dataset/2020-yellow-taxi-trip-data-january-june/resource/c3ec101d-e6c7-4084-85f3-3930defd8140)
+
+# ...for more dataset info, see https://www.kaggle.com/datasets/elemento/nyc-yellow-taxi-trip-data
+
+amd <- readr::read_csv("MEH_AMD_survivaloutcomes_database.csv")
+```
+
+```{r}
+# Create a DuckDB connection
+con <- dbConnect(duckdb::duckdb())
+
+# Register the CSV file as a table
+# duckdb::duckdb_register(con, "amd_db", "read_csv_auto('MEH_AMD_survivaloutcomes_database.csv')")
+
+# amd_db <- tbl(con, "read_csv_auto('MEH_AMD_survivaloutcomes_database.csv')")
+```
+
+# Tips for big data
+
+- Upgrade hardware
+- Use only required rows and columns (e.g. pre-filter using bash or R/Python to process the file line by line; use `data.table::fread()` to select required columns only when importing)
+- Use `data.table` package (R) or `polars` library (Python)
+- Query the data out of memory (e.g. Parquet, SQL)
+
+# Query csv file directly
+
+```{sql}
+#| connection: "con"
+SELECT * FROM read_csv_auto('MEH_AMD_survivaloutcomes_database.csv') LIMIT 5
+```
+
+Using SQL query
+
+```{sql}
+#| connection: "con"
+SELECT regimen, gender, COUNT(*) AS count 
+FROM read_csv_auto('MEH_AMD_survivaloutcomes_database.csv') 
+WHERE injnum = 1 
+GROUP BY regimen, gender
+ORDER BY regimen;
+```
+
+Using dplyr
+
+```{r}
+amd_db <- tbl(con, "read_csv_auto('MEH_AMD_survivaloutcomes_database.csv')")
+
+result <- amd_db |>
+  filter(injnum == 1) |>
+  group_by(regimen,
+           gender) |>
+  summarise(n = n()) |>
+  arrange(regimen)
+
+# show equivalent SQL query
+result |>
+  show_query()
+
+# execute
+result |>
+  collect()
+```
+
+# A big dataset
+
+```{r}
+# Specify the file path
+file_path <- "nyctaxi.csv"
+
+# Get the file size in bytes
+size_bytes <- file.size(file_path)
+
+# Convert bytes to gigabytes
+size_gb <- size_bytes / (1024^3)  # 1 GB = 1024^3 bytes
+
+# Print the size in GB, rounded to 2 decimal places
+cat("File size:", round(size_gb, 2), "GB\n")
+```
+
+Connect using duckdb and preview
+
+```{r}
+nyctaxi <- tbl(con, "read_csv_auto('nyctaxi.csv')")
+
+nyctaxi |>
+  head(5)
+```
+
+Count n rows
+
+```{r}
+# compare with `wc -l` in terminal
+system.time({
+  result <- nyctaxi |>
+    count() |>
+    collect()
+})
+
+result
+
+# using `wc -l` 
+system.time({
+  system("wc -l nyctaxi.csv")
+})
+```
+
+Tip amount by rating
+
+```{r}
+result <- nyctaxi |>
+  group_by(RatecodeID) |>
+  summarise(mean_tip_amount = mean(tip_amount, na.rm = TRUE))
+
+# show query
+result |>
+  show_query()
+
+# execute query
+system.time({
+  result <- result |>
+    arrange(RatecodeID) |>
+    collect()
+})
+
+result |>
+  filter(!is.na(RatecodeID), RatecodeID <= 10) |>
+  ggplot(aes(x = RatecodeID, y = mean_tip_amount)) +
+  geom_col()
+```
+
+```{r}
+# Write the CSV file to a new table in the DuckDB .db file
+db_path <- tempfile(fileext = ".db")
+
+con_db <- DBI::dbConnect(duckdb::duckdb(), db_path)
+
+system.time({
+  duckdb::duckdb_read_csv(con_db, "nyctaxi", "nyctaxi.csv")
+})
+```
+
+db file is smaller
+
+```{r}
+# Get the file size in bytes
+size_bytes <- file.size(db_path)
+
+# Convert bytes to gigabytes
+size_gb <- size_bytes / (1024^3)  # 1 GB = 1024^3 bytes
+
+# Print the size in GB, rounded to 2 decimal places
+cat("File size:", round(size_gb, 2), "GB\n")
+```
+
+Query time is quicker
+
+```{r}
+# compare query time
+nyctaxi <- tbl(con_db, "nyctaxi")
+
+result <- nyctaxi |>
+  group_by(RatecodeID) |>
+  summarise(mean_tip_amount = mean(tip_amount, na.rm = TRUE))
+
+# execute query
+system.time({
+  result <- result |>
+    arrange(RatecodeID) |>
+    collect()
+})
+
+result
+```

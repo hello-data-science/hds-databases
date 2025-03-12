@@ -1,0 +1,129 @@
+---
+title: "Neovascular Age-related Macular Degeneration Visual Outcomes - Python Version"
+author: "Me"
+format: 
+  html:
+    code-fold: show
+    code-link: true
+    self-contained: true
+    toc: true
+    code-tools:
+      source: true
+      toggle: true
+      caption: Code
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| code-fold: true
+
+# If using knitr engine, unhash the lines below and add `engine: knitr` (no indent) to document header yaml
+
+# library(reticulate)
+# reticulate::use_virtualenv("./env", required = TRUE)
+```
+
+# Overview
+
+**Aim:** to explore a 12-year dataset of patients with treatment-naive neovascular age-related macular degeneration (AMD) who received intravitreal anti-VEGF therapy.
+
+```{python}
+import pandas as pd
+import plotly.express as px
+import statsmodels.api as sm
+
+# Read CSV file
+amd = pd.read_csv("MEH_AMD_survivaloutcomes_database.csv")
+```
+
+# Session 1
+
+```{python}
+# Look at the first few rows using `head()`
+amd.head()
+```
+
+```{python}
+# Summarize with `describe()`
+amd.describe()
+```
+
+## Selecting columns and filtering rows
+
+- Select visual acuity, age group, and injection number columns.
+- Filter for first injections only.
+
+```{python}
+amd_first_injection_vas = amd.loc[amd['time'] == 0, ['anon_id', 'va', 'time', 'age_group']]
+print(f"N rows in full dataset: {len(amd)}")
+print(f"N rows in filtered dataset: {len(amd_first_injection_vas)}")
+```
+
+## Plots
+
+### Box and whisker plots
+
+```{python}
+fig_box = px.box(amd_first_injection_vas, x='age_group', y='va', color='age_group',
+                 title="Visual Acuity by Age Group (Boxplot)")
+fig_box.show()
+```
+
+### Histogram
+
+```{python}
+fig_hist = px.histogram(amd_first_injection_vas, x='va', color='age_group',
+                        title="Visual Acuity Distribution by Age Group",
+                        nbins=20, opacity=0.7)
+fig_hist.show()
+```
+
+# Session 2
+
+## More wrangling - VA at month 12
+
+```{python}
+# Create a new column recording time from baseline, grouped by eye ID.
+amd['time_from_12_months'] = amd.groupby('anon_id')['time'].transform(lambda x: abs(x - 365))
+amd_12_month = amd.loc[amd['time_from_12_months'] < 30].copy()
+amd_12_month['va_12m'] = amd_12_month['va']
+
+# Filtered DataFrame showing vision outcomes at 12 months
+amd_12_month = amd_12_month.groupby('anon_id').apply(lambda x: x.loc[x['time_from_12_months'].idxmin()]).reset_index(drop=True)
+```
+
+## Create Table 1
+
+```{python}
+# Summarize the median baseline and 12-month vision
+table1 = amd_12_month.agg(median_baseline_va=('va_inj1', 'median'),
+                          median_12month_va=('va_12m', 'median'))
+print("Table 1 summary:", table1)
+```
+
+## Linear regression
+
+```{python}
+# Create scatter plot and linear regression line
+fig = px.scatter(amd_12_month, x='va_inj1', y='va_12m', opacity=0.6, trendline='ols',
+                 title='Baseline vs 12-Month Visual Acuity')
+fig.show()
+```
+
+```{python}
+import statsmodels.api as sm
+
+# Drop rows with missing values in either 'va_inj1' or 'va_12m'
+amd_12_month_clean = amd_12_month.dropna(subset=['va_inj1', 'va_12m'])
+
+# Define the predictor (X) and the response variable (y)
+X = sm.add_constant(amd_12_month_clean['va_inj1'])  # Add constant for the intercept
+y = amd_12_month_clean['va_12m']
+
+# Fit the linear regression model
+model = sm.OLS(y, X).fit()
+
+# Print the summary of the regression model
+print(model.summary())
+```
