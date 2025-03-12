@@ -28,17 +28,15 @@ library(ggplot2)
 
 # ...for more dataset info, see https://www.kaggle.com/datasets/elemento/nyc-yellow-taxi-trip-data
 
+# 12 year dataset of patients with treatment-naive neovascular age-related
+# macular degeneration (AMD) who received intravitreal anti-VEGF therapy (Fu et
+# al - https://jamanetwork.com/journals/jamaophthalmology/fullarticle/2772986)
 amd <- readr::read_csv("MEH_AMD_survivaloutcomes_database.csv")
 ```
 
 ```{r}
 # Create a DuckDB connection
 con <- dbConnect(duckdb::duckdb())
-
-# Register the CSV file as a table
-# duckdb::duckdb_register(con, "amd_db", "read_csv_auto('MEH_AMD_survivaloutcomes_database.csv')")
-
-# amd_db <- tbl(con, "read_csv_auto('MEH_AMD_survivaloutcomes_database.csv')")
 ```
 
 # Tips for big data
