@@ -9,4 +9,4 @@
 !index.html
 !MEH_AMD_survivaloutcomes_database.csv
 env/*
-
+.Renviron

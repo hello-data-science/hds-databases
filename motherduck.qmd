@@ -1,0 +1,67 @@
+---
+title: "MotherDuck"
+format: html
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup}
+#| message: false
+#| warning: false
+#| results: hide
+library(DBI)
+library(dplyr)
+con <- dbConnect(duckdb::duckdb())
+# dbExecute(con, "INSTALL 'motherduck'") # run this once
+dbExecute(con, "LOAD 'motherduck'")
+dbExecute(con, "ATTACH 'md:_share/all_lkps_maps/556f0fd5-f1c7-4f4a-ad5b-719865162abb' AS db;")
+# dbExecute(con, "PRAGMA PRINT_MD_TOKEN;") # run once, then save token as an environment variable to avoid having to log in again
+dbExecute(con, "USE db")
+
+# explore
+dbGetQuery(con, "SHOW DATABASES")
+
+dbGetQuery(con, "SHOW TABLES")
+
+# example tbl object
+tbl(con, "self_report_non_cancer")
+
+# store all tables in a list
+db <- dbGetQuery(con, "SHOW TABLES") |>
+  dplyr::pull(name) |>
+  purrr::set_names() |>
+  purrr::map(\(x) tbl(con, x))
+```
+
+# Example queries
+
+Preview BNF lookup table
+
+```{r}
+db$bnf_lkp
+```
+
+How many rows
+
+```{r}
+db$bnf_lkp |>
+  count()
+```
+
+Chapters
+
+```{r}
+db$bnf_lkp |>
+  count(BNF_Chapter)
+```
+
+Chemical substances per chapter
+
+```{r}
+db$bnf_lkp |>
+  group_by(BNF_Chapter) |>
+  summarise(`N chemical substances` = n_distinct(BNF_Chemical_Substance)) |>
+  collect() |>
+  as.data.frame()
+```
